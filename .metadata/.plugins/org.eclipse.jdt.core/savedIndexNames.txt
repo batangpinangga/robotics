@@ -1,0 +1,2 @@
+INDEX VERSION 1.127+/Users/Alena/Documents/workspace/robotics/.metadata/.plugins/org.eclipse.jdt.core
+1947455616.index
