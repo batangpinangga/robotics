@@ -28,8 +28,9 @@ public class Main {
 	static EV3LargeRegulatedMotor motor_right = new EV3LargeRegulatedMotor(MotorPort.D);
 	static NXTRegulatedMotor motor_ultrasonic = new NXTRegulatedMotor(MotorPort.C);
 	static EV3LargeRegulatedMotor motor_grabber = new EV3LargeRegulatedMotor(MotorPort.B);
-	static DifferentialPilot pilot = new DifferentialPilot(5.5, 11.73, motor_left, motor_right, false);
-	
+	//static DifferentialPilot pilot = new DifferentialPilot(5.5, 11.73, motor_left, motor_right, false);
+	static DifferentialPilot pilot = new DifferentialPilot(5.5, 5.55, 11.73, motor_left, motor_right, false);
+
 	static EV3GyroSensor gyroSensor = new EV3GyroSensor(SensorPort.S1);
 
 	public static void main(String[] args) {
