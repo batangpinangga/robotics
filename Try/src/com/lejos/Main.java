@@ -21,14 +21,16 @@ public class Main {
 	
 	//initialization
 	static EV3 ev3 = (EV3) BrickFinder.getDefault();
+	
 	static EV3UltrasonicSensor ultrasonic_up = new EV3UltrasonicSensor(SensorPort.S3);
 	static NXTUltrasonicSensor ultrasonic_down = new NXTUltrasonicSensor(SensorPort.S4);
 	static EV3LargeRegulatedMotor motor_left = new EV3LargeRegulatedMotor(MotorPort.A);
 	static EV3LargeRegulatedMotor motor_right = new EV3LargeRegulatedMotor(MotorPort.D);
 	static NXTRegulatedMotor motor_ultrasonic = new NXTRegulatedMotor(MotorPort.C);
 	static EV3LargeRegulatedMotor motor_grabber = new EV3LargeRegulatedMotor(MotorPort.B);
-	static DifferentialPilot pilot = new DifferentialPilot(5.5, 11.73, motor_left, motor_right, false);
-	
+	//static DifferentialPilot pilot = new DifferentialPilot(5.5, 11.73, motor_left, motor_right, false);
+	static DifferentialPilot pilot = new DifferentialPilot(5.5, 5.55, 11.73, motor_left, motor_right, false);
+
 	static EV3GyroSensor gyroSensor = new EV3GyroSensor(SensorPort.S1);
 
 	public static void main(String[] args) {
@@ -44,11 +46,11 @@ public class Main {
 			//ENTRANCE TASK
 			if (Button.UP.isDown()){
 				graphicsLCD.clear();
-				while (Button.readButtons() != Button.ID_ESCAPE){
+				//while (Button.readButtons() != Button.ID_ESCAPE){
 					graphicsLCD.drawString("ENTRANCE", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
-					Finding_Entrance entrance = new Finding_Entrance(ultrasonic_up, ultrasonic_down, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot);
+					Finding_Entrance entrance = new Finding_Entrance(ultrasonic_up, ultrasonic_down, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot,gyroSensor);
 					entrance.locate();
-				}
+				//}
 				graphicsLCD.clear();
 			}
 			//MAPPING TASK
