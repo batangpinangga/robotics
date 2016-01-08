@@ -6,6 +6,8 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import lejos.hardware.Button;
+import lejos.hardware.Sound;
 import lejos.hardware.lcd.GraphicsLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.motor.NXTRegulatedMotor;
@@ -45,11 +47,26 @@ public class Mapping_Robot {
 	static SampleProvider sampleProvider_down;
 	static SampleProvider sampleProvider_up;
 
+	static float side;
+	static float front;
+	static boolean reverse;
+	static boolean green = false;
+	static boolean red = false;
+
 	static float threshold_ev3_side = 0.14f;
 	static int positionWall;
 	static int configurationInitial;
-	
+	static int orientation; //orientation of the robot: 0:i, 1: <-, 2: ->, 3: !
+	static boolean longside;
+
+	static int position_x;
+	static int position_y;
+
 	static DataOutputStream dataOutputStream;
+
+	private boolean mapping_done;
+
+	private boolean start;
 
 	public Mapping_Robot(EV3UltrasonicSensor ultrasonic_up,
 			NXTUltrasonicSensor ultrasonic_down,
@@ -72,6 +89,7 @@ public class Mapping_Robot {
 		this.graphicsLCD = graphicsLCD;
 		this.pilot =  pilot;
 		configurationInitial = configuration;
+		reverse = false;
 
 		this.colorAdapter = new ColorAdapter(colorSensor);
 		pilot.setRotateSpeed(200);
@@ -82,11 +100,19 @@ public class Mapping_Robot {
 		sampleProvider_up = ultrasonic_up.getDistanceMode();
 		sampleProviderFront = sampleProvider_down;
 		sampleProviderSide = sampleProvider_up;
-		
+		green = false;
+		red = false;
+		orientation = 0;
+		longside = false;
+		start = true;
+
 		if(configurationInitial == -1){
 			changeConfiguration();
 		}
-		
+
+		side = getUltrasonicSensorValue(sampleProviderSide);
+		front = getUltrasonicSensorValue(sampleProviderFront);
+
 		try {
 			ServerSocket serverSocket = new ServerSocket(1234);
 			Socket client = serverSocket.accept();
@@ -99,76 +125,186 @@ public class Mapping_Robot {
 		}
 	}
 
-	public void move() throws IOException{
-		//motor_left.synchronizeWith(new RegulatedMotor[]{motor_right});
-		//bring robot in starting position 
-		//rotate_via_gyro(90); 
-		//pilot.travel(2*tile_length);
-		int n_turns = 4;
-		boolean longside = false;
+	public void locate(){
+		float side_left = side;
+		orientation = 0;
+		colorUpdate();
+		reverse = false; //if the maze is reversed
+		
+		if (side_left < 0.90){
+			reverse = true;
+			position_x = 66;
+			position_y = 4*33;
+		}
+		
+		else{
+			position_x = 99;
+			position_y = 4*33;
+		}
+	}
 
+	public void move() throws IOException{
+		pilot.setAcceleration(5);
+		pilot.setTravelSpeed(10);
+
+		boolean finished = false;
+
+		while (!finished){
+			motionUpdate();
+			finished = checkfinish();
+		}
+
+	}
+
+	private boolean checkfinish() {
+		if (green==false | red==false | mapping_done==false)
+			return false;
+		else
+			return true;
+	}
+
+	//TODO
+	private void motionUpdate() throws IOException{
+		int n_turns = 4;
+		int o = orientation;
+		
+		if (orientation==0) { //starting position
+			goForward(tile_length, 1);
+			rotate_via_gyro(90);	
+
+			if (reverse){
+				goForward(tile_length, 1);
+			}
+			else{
+				goForward(tile_length*2, 1);
+			}
+			longside = true;
+			start = false;
+		}
+		
+		else if (orientation == 4){
+			rotate_via_gyro(-90);
+			goForward(tile_length, 1);
+			orientation = 1;
+			if (green==false | red==false){
+				goExtraRound(longside, n_turns);
+			}
+		}
+		
+		else{
+			moveAlongWall(n_turns);
+		}
+
+
+	}
+
+
+	private void moveAlongWall(int n_turns) throws IOException {
+		rotate_via_gyro(-90);			
+		longside = !longside;
+		int tiles = 3;
+		float distance = tiles*tile_length;
+		goForward(distance, 3);
+	}
+
+	private void goExtraRound(boolean longside, int n_turns) {
+		longside = false;
 		for(int i = 0; i<n_turns; i++){
-			rotate_via_gyro(-90);			
-			longside = !longside;
 			int tiles = 0;
 			if (longside){
-				tiles = 4;
+				tiles = 2;
 			}
 			else
-				tiles = 3;
-			
-			int distance = tiles*tile_length;
-			pilot.travel(distance);
-			
+				tiles = 1;
+
+			float distance = tiles*tile_length;
+			longside = !longside;
+
+			try{
+				goForward(distance, tiles);
+			}
+			catch(IOException e){
+				e.printStackTrace();
+			}
+			rotate_via_gyro(-90);			
+		}
+		mapping_done = true;
+
+	}
+
+	private void send_variables_to_PC(int distance){
+
+	}
+
+
+	public static void goForward(float distance, int n) throws IOException{
+		positionUpdate(0);
+		float substep = distance/n;
+		for (int i=0; i<n; i++){
+			float first = getGyroValue();
+			pilot.travel(substep);
+			positionUpdate(substep);
+			colorUpdate();
+			float second = getGyroValue();
+			fix_rotation(0, second-first);
+
 			while(pilot.isMoving()){
-				dataOutputStream.writeInt(distance);
-				dataOutputStream.flush();
-
+				graphicsLCD.clear();
+				graphicsLCD.drawString("x: " + position_x + " ,y: " + position_y, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
+				dataOutputStream.writeInt(orientation);
+				dataOutputStream.writeInt(position_x);
+				dataOutputStream.writeInt(position_y);
 				dataOutputStream.writeFloat(getUltrasonicSensorValue(sampleProviderSide));
-				dataOutputStream.flush();
-
 				dataOutputStream.writeFloat(getUltrasonicSensorValue(sampleProviderFront));
+				dataOutputStream.writeBoolean(red); //Red
+				dataOutputStream.writeBoolean(green); //Green
 				dataOutputStream.flush();
+
 			}
 		}
 	}
 
-	private void send_variables_to_PC(){
-
-	}
-
-	public static void goForward(int direction, float distance){
-		pilot.forward();
-		//pilot.travel(distance*direction);
-		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
-		while(pilot.isMoving()){
-			float [] sample = new float[sampleProvider.sampleSize()];
-			sampleProvider.fetchSample(sample, 0);
-			float angle = sample[0];
-			if(angle>=1){
-				pilot.stop();
-				fix_rotation(0, angle);
-				pilot.travel(33);
-			}
-			Thread.yield();	
+	private static void colorUpdate() {
+		if (getColor(1) > 40){
+			Sound.beepSequence();
+			green = true;
+		}
+		
+		if (getColor(0) > 50){
+			Sound.beepSequence();
+			red = true;
 		}
 	}
 
-	private static float getSideValue() {
-		// TODO Auto-generated method stub
-		return 0;
+	private static void positionUpdate(float substep) {
+		switch(orientation){
+		case 1: position_x -= substep;
+		break;
+		case 2: position_y -= substep;
+		break;
+		case 3: position_x += substep;
+		break;
+		case 4: position_y += substep;
+		break;
+		}
 	}
 
-	public void getColor(){
+
+	public static int getColor(int i){
 		Color color = colorAdapter.getColor();
-
+		int[] colors = new int[2];
 		graphicsLCD.clear();
 		graphicsLCD.drawString("R : " + color.getRed(), 10, 20 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT); // red tile: R~60
 		graphicsLCD.drawString("G : " + color.getGreen(), 10, 40 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT); //green tile: G~45
 		graphicsLCD.drawString("B : " + color.getBlue(), 10, 60 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT);
+
+		colors[0] = color.getRed();
+		colors[1] = color.getGreen();
+		return colors[i];
 	}
 
 	public static void rotate_via_gyro(float turn_angle){
+		orientation++;
 		float first = getGyroValue();
 		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
 		float angle = 0;
@@ -184,7 +320,6 @@ public class Mapping_Robot {
 			pilot.rotate(turn_angle);
 			float second = getGyroValue();
 			graphicsLCD.clear();
-			graphicsLCD.drawString("angle: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 			fix_rotation(turn_angle, (second-first));
 		}
 		Thread.yield();
@@ -241,7 +376,7 @@ public class Mapping_Robot {
 		}
 		return angle;
 	}
-	
+
 	/**
 	 * configuration of ultrasonic-sensors. Initial: 1 (means wall is left of the robot)
 	 */
@@ -264,7 +399,7 @@ public class Mapping_Robot {
 			threshold_side = threshold_ev3_side;
 		}
 	}
-	
+
 	static float getUltrasonicSensorValue(SampleProvider sampleProvider) {
 		//SampleProvider sampleProvider = ultrasonic_down.getDistanceMode();
 		if(sampleProvider.sampleSize() > 0) {

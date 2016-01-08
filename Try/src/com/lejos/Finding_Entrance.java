@@ -12,7 +12,7 @@ import lejos.robotics.SampleProvider;
 import lejos.robotics.navigation.DifferentialPilot;
 import lejos.utility.Delay;
 
-public class Finding_Entrance {
+public class Finding_Entrance_Emre {
 	static EV3UltrasonicSensor ultrasonic_up;
 	static NXTUltrasonicSensor ultrasonic_down;
 	static NXTRegulatedMotor motor_ultrasonic;
@@ -35,7 +35,7 @@ public class Finding_Entrance {
 	static float distance_wall_up = 0.34f; // between 33 and 34
 	static float distance_wall_down = 0.20f; // between 18 and 20
 
-	public Finding_Entrance(EV3UltrasonicSensor ultrasonic_up,
+	public Finding_Entrance_Emre(EV3UltrasonicSensor ultrasonic_up,
 			NXTUltrasonicSensor ultrasonic_down,
 			NXTRegulatedMotor motor_ultrasonic,
 			EV3LargeRegulatedMotor motor_left,
@@ -392,6 +392,10 @@ static float getUltrasonicSensorValue(SampleProvider sampleProvider) {
 			}
 			Thread.yield();	
 		}
+	}
+	
+	public int getConfiguration(){
+		return configurationInitial;
 	}
 }
 

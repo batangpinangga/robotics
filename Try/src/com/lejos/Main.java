@@ -1,5 +1,7 @@
 package com.lejos;
 
+import java.io.IOException;
+
 import lejos.hardware.BrickFinder;
 import lejos.hardware.Button;
 import lejos.hardware.ev3.EV3;
@@ -8,6 +10,7 @@ import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.motor.NXTRegulatedMotor;
 import lejos.hardware.port.MotorPort;
 import lejos.hardware.port.SensorPort;
+import lejos.hardware.sensor.EV3ColorSensor;
 import lejos.hardware.sensor.EV3GyroSensor;
 import lejos.hardware.sensor.EV3UltrasonicSensor;
 import lejos.hardware.sensor.NXTUltrasonicSensor;
@@ -21,23 +24,21 @@ public class Main {
 	
 	//initialization
 	static EV3 ev3 = (EV3) BrickFinder.getDefault();
-	
 	static EV3UltrasonicSensor ultrasonic_up = new EV3UltrasonicSensor(SensorPort.S3);
 	static NXTUltrasonicSensor ultrasonic_down = new NXTUltrasonicSensor(SensorPort.S4);
 	static EV3LargeRegulatedMotor motor_left = new EV3LargeRegulatedMotor(MotorPort.A);
 	static EV3LargeRegulatedMotor motor_right = new EV3LargeRegulatedMotor(MotorPort.D);
 	static NXTRegulatedMotor motor_ultrasonic = new NXTRegulatedMotor(MotorPort.C);
 	static EV3LargeRegulatedMotor motor_grabber = new EV3LargeRegulatedMotor(MotorPort.B);
-	//static DifferentialPilot pilot = new DifferentialPilot(5.5, 11.73, motor_left, motor_right, false);
-	static DifferentialPilot pilot = new DifferentialPilot(5.5, 5.55, 11.73, motor_left, motor_right, false);
-
+	static DifferentialPilot pilot = new DifferentialPilot(5.5, 11.73, motor_left, motor_right, false);
 	static EV3GyroSensor gyroSensor = new EV3GyroSensor(SensorPort.S1);
+	static EV3ColorSensor colorSensor = new EV3ColorSensor(SensorPort.S2);
 
 	public static void main(String[] args) {
 		pilot.setTravelSpeed(100);
 		GraphicsLCD graphicsLCD = ev3.getGraphicsLCD();
 		graphicsLCD.drawString("Miner Robot", graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2-40, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
-
+		int configuration = 1;
 		while(true)
 		{	
 			graphicsLCD.drawString("UP for Entrance", graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2 , graphicsLCD.VCENTER|graphicsLCD.HCENTER);
@@ -46,19 +47,27 @@ public class Main {
 			//ENTRANCE TASK
 			if (Button.UP.isDown()){
 				graphicsLCD.clear();
-				//while (Button.readButtons() != Button.ID_ESCAPE){
+				while (Button.readButtons() != Button.ID_ESCAPE){
 					graphicsLCD.drawString("ENTRANCE", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 					Finding_Entrance entrance = new Finding_Entrance(ultrasonic_up, ultrasonic_down, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot,gyroSensor);
 					entrance.locate();
-				//}
+					configuration = entrance.getConfiguration();
+				}
 				graphicsLCD.clear();
 			}
 			//MAPPING TASK
 			if (Button.DOWN.isDown()){
 				graphicsLCD.clear();
-				while (Button.readButtons() != Button.ID_ESCAPE){
-					graphicsLCD.drawString("MAPPING", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
-				}
+				//while (Button.readButtons() != Button.ID_ESCAPE){
+					//graphicsLCD.drawString("MAPPING", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
+					//graphicsLCD.clear();
+					Mapping_Robot mapping = new Mapping_Robot(ultrasonic_up, ultrasonic_down, colorSensor, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot, gyroSensor, configuration);
+					try {
+						mapping.move();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				//}
 				graphicsLCD.clear();
 			}
 			
