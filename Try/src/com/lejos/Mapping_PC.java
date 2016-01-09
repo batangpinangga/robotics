@@ -30,7 +30,11 @@ public class Mapping_PC extends JFrame{
 	int tile_map;
 	int zoom;
 	static boolean red;
+	static boolean red_done;
+
 	static boolean green; 
+	static boolean green_done;
+
 	static int orientation;
 	private static int width = maze_length*3;
 	private static int height = maze_length*3;
@@ -45,6 +49,8 @@ public class Mapping_PC extends JFrame{
 	static DataInputStream dataInputStream;
 	private static int position_x;
 	private static int position_y;
+	private static boolean obstacle;
+	static int[][] map_to_save;
 
 	public Mapping_PC (){
 		super("Map_Miner_Robot");
@@ -58,11 +64,14 @@ public class Mapping_PC extends JFrame{
 		zoom = 3;
 		red = false;
 		green = false;
+		red_done = false;
+		green_done = false;
 		orientation = 0;
 		maze_map = maze_length*zoom;
 		tile_map = tile_length*zoom;
 		map = new Map();
 		localization = new MCL(5000,map);
+		
 	}
 
 	public static void main(String[] Args) throws UnknownHostException, IOException
@@ -87,8 +96,9 @@ public class Mapping_PC extends JFrame{
 				orientation = dataInputStream.readInt();
 				position_x = dataInputStream.readInt();
 				position_y = dataInputStream.readInt();
-				side= dataInputStream.readFloat();
-				front = dataInputStream.readFloat();
+				//side= dataInputStream.readFloat();
+				//front = dataInputStream.readFloat();
+				obstacle = dataInputStream.readBoolean();
 				red = dataInputStream.readBoolean();
 				green = dataInputStream.readBoolean();
 
@@ -114,6 +124,7 @@ public class Mapping_PC extends JFrame{
 	}
 
 	public void displayMap(Graphics g){
+
 		if(start == 0){
 
 			g.setColor(Color.gray);
@@ -126,39 +137,46 @@ public class Mapping_PC extends JFrame{
 			start = 1;
 		}
 		
-		g.setColor(Color.black);
+		else{
 
-		if (green){
-			drawColorTile(g, Color.green, position_x, position_y);
-			green = false; //otherwise it will always draw green tiles
-		}
+			displayRobot(g);
+			g.setColor(Color.black);
 
-		if (red){
-			drawColorTile(g, Color.red, position_x, position_y);
-			red = false;
-		}
-		
-		if(orientation > 1){
-			if(side <= expected_distance_obstacle){ //TODO:Define expected_distance_obstacle
-				int x = 0;
+			if (green && !green_done){
+				drawColorTile(g, Color.green, position_x, position_y);
+				green_done = true; //otherwise it will always draw green tiles
+				
+			}
+
+			else if (red && !red_done){
+				drawColorTile(g, Color.red, position_x, position_y);
+				red_done = true;
+				
+			}
+
+			else if(obstacle){
+
 				switch(orientation){
-				case 2: drawObstacle(g, Color.black, 0, x);
+				case 0: drawObstacle(g, Color.black, position_x+tile_length, position_y);
 				break;
-				case 3: drawObstacle(g, Color.black, x, 0);
+				case 1: drawObstacle(g, Color.black, position_x+tile_length, position_y);
 				break;
-				case 4: drawObstacle(g, Color.black, 33*5, x);
+				case 2: drawObstacle(g, Color.black, position_x, position_y-tile_length);
+				break;
+				case 3: drawObstacle(g, Color.black, position_x-tile_length, position_y);
+				break;
 				}
+				
 			}
 		}
 
 	}
 
 	public void displayRobot(Graphics g){
-		Graphics2D g2 = ( Graphics2D ) g;
-		g2.setPaint( Color.blue );
-		g2.setStroke( new BasicStroke( 5.0f ));
+		g.setColor(Color.blue);
+		g.fillRect(position_x*zoom, position_y*zoom, tile_map, tile_map);
 		//TODO: paint Roboter
-		
+
 		//		switch(front){
 		//		case 1: g2.draw(new Line2D.Double((int) x_offset, (int) y_offset+travel*stepwidth, (int) 5, (int) 5));
 		//		break;

@@ -21,7 +21,7 @@ public class Main {
 	static int maze_length = 198;
 	static int tile_length = 33;
 	static float distance_to_wall = 20.0f;
-	
+
 	//initialization
 	static EV3 ev3 = (EV3) BrickFinder.getDefault();
 	static EV3UltrasonicSensor ultrasonic_up = new EV3UltrasonicSensor(SensorPort.S3);
@@ -39,6 +39,8 @@ public class Main {
 		GraphicsLCD graphicsLCD = ev3.getGraphicsLCD();
 		graphicsLCD.drawString("Miner Robot", graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2-40, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 		int configuration = 1;
+		int[][] map = new int [3][2];
+		
 		while(true)
 		{	
 			graphicsLCD.drawString("UP for Entrance", graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2 , graphicsLCD.VCENTER|graphicsLCD.HCENTER);
@@ -50,7 +52,7 @@ public class Main {
 				while (Button.readButtons() != Button.ID_ESCAPE){
 					graphicsLCD.drawString("ENTRANCE", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 					Finding_Entrance entrance = new Finding_Entrance(ultrasonic_up, ultrasonic_down, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot,gyroSensor);
-					entrance.locate();
+					entrance.locate();	
 					configuration = entrance.getConfiguration();
 				}
 				graphicsLCD.clear();
@@ -59,18 +61,21 @@ public class Main {
 			if (Button.DOWN.isDown()){
 				graphicsLCD.clear();
 				//while (Button.readButtons() != Button.ID_ESCAPE){
-					//graphicsLCD.drawString("MAPPING", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
-					//graphicsLCD.clear();
-					Mapping_Robot mapping = new Mapping_Robot(ultrasonic_up, ultrasonic_down, colorSensor, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot, gyroSensor, configuration);
-					try {
-						mapping.move();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
+				//graphicsLCD.drawString("MAPPING", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
+				//graphicsLCD.clear();
+				Mapping_Robot mapping = new Mapping_Robot(ultrasonic_up, ultrasonic_down, colorSensor, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot, gyroSensor, configuration);
+				
+				try {
+					mapping.locate();
+					mapping.move();
+					map = mapping.getMap(); //saves the map
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 				//}
 				graphicsLCD.clear();
 			}
-			
+
 			//TASK EXECUTION
 			if (Button.LEFT.isDown()){
 				graphicsLCD.clear();

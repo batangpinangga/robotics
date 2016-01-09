@@ -62,11 +62,23 @@ public class Mapping_Robot {
 	static int position_x;
 	static int position_y;
 
+	static int n_obstacles; //expected 6
+
 	static DataOutputStream dataOutputStream;
 
-	private boolean mapping_done;
+	private static boolean mapping_done = false;
+
+	private static float left_distance;
+
+	private static float right_distance;
+
+	private static boolean first_time;
+
+	private static boolean obstacle;
 
 	private boolean start;
+
+	private static int[][] map_to_save;
 
 	public Mapping_Robot(EV3UltrasonicSensor ultrasonic_up,
 			NXTUltrasonicSensor ultrasonic_down,
@@ -90,6 +102,7 @@ public class Mapping_Robot {
 		this.pilot =  pilot;
 		configurationInitial = configuration;
 		reverse = false;
+		first_time=true;
 
 		this.colorAdapter = new ColorAdapter(colorSensor);
 		pilot.setRotateSpeed(200);
@@ -105,13 +118,17 @@ public class Mapping_Robot {
 		orientation = 0;
 		longside = false;
 		start = true;
+		n_obstacles = 0;
+		map_to_save = new int[2][3];
+		
+		for (int i=0; i<map_to_save.length; i++){
+			for (int j=0; j<map_to_save[0].length; j++)
+				map_to_save[i][j] = 0;
+		}
 
 		if(configurationInitial == -1){
 			changeConfiguration();
 		}
-
-		side = getUltrasonicSensorValue(sampleProviderSide);
-		front = getUltrasonicSensorValue(sampleProviderFront);
 
 		try {
 			ServerSocket serverSocket = new ServerSocket(1234);
@@ -125,22 +142,31 @@ public class Mapping_Robot {
 		}
 	}
 
-	public void locate(){
-		float side_left = side;
+	/*TODO: maybe different mapping 
+	 * go to shorter side
+	 * map both obstacles at same time
+	 * go further if red and green have not been found
+	 */
+	public void locate() throws IOException{
+		left_distance = getUltrasonicSensorValue(sampleProviderSide); //worst case: 0.90, 0.90, 0.91, 0.65
+		changeConfiguration();
+		right_distance = getUltrasonicSensorValue(sampleProviderSide); // worst case: 0.44, 0.8, 1.06, 1.07
+		changeConfiguration();
 		orientation = 0;
 		colorUpdate();
 		reverse = false; //if the maze is reversed
-		
-		if (side_left < 0.90){
+
+		if (right_distance >= 0.90){
 			reverse = true;
-			position_x = 66;
-			position_y = 4*33;
+			position_x = 2*tile_length;
+			position_y = 5*tile_length;
 		}
-		
+
 		else{
-			position_x = 99;
-			position_y = 4*33;
+			position_x = 3*tile_length;
+			position_y = 5*tile_length;
 		}
+		send_variables_to_PC();
 	}
 
 	public void move() throws IOException{
@@ -159,134 +185,182 @@ public class Mapping_Robot {
 	private boolean checkfinish() {
 		if (green==false | red==false | mapping_done==false)
 			return false;
-		else
+		else{
+			map_to_save[2][0] = position_x;
+			map_to_save[2][1] = position_y;
+			map_to_save[2][2] = orientation;
 			return true;
+		}
 	}
 
 	//TODO
 	private void motionUpdate() throws IOException{
 		int n_turns = 4;
-		int o = orientation;
-		
+		int tiles = 0;
+		boolean updateSensors = true;
+
 		if (orientation==0) { //starting position
-			goForward(tile_length, 1);
-			rotate_via_gyro(90);	
-
 			if (reverse){
-				goForward(tile_length, 1);
-			}
-			else{
-				goForward(tile_length*2, 1);
-			}
-			longside = true;
-			start = false;
-		}
-		
-		else if (orientation == 4){
-			rotate_via_gyro(-90);
-			goForward(tile_length, 1);
-			orientation = 1;
-			if (green==false | red==false){
-				goExtraRound(longside, n_turns);
-			}
-		}
-		
-		else{
-			moveAlongWall(n_turns);
-		}
-
-
-	}
-
-
-	private void moveAlongWall(int n_turns) throws IOException {
-		rotate_via_gyro(-90);			
-		longside = !longside;
-		int tiles = 3;
-		float distance = tiles*tile_length;
-		goForward(distance, 3);
-	}
-
-	private void goExtraRound(boolean longside, int n_turns) {
-		longside = false;
-		for(int i = 0; i<n_turns; i++){
-			int tiles = 0;
-			if (longside){
 				tiles = 2;
 			}
-			else
+			else{
 				tiles = 1;
-
-			float distance = tiles*tile_length;
-			longside = !longside;
-
-			try{
-				goForward(distance, tiles);
 			}
-			catch(IOException e){
-				e.printStackTrace();
-			}
-			rotate_via_gyro(-90);			
+			rotate_via_gyro(-90);	
+			goForward(tile_length*tiles, 1, false);
+
+			rotate_via_gyro(90);
+			changeConfiguration();
+			goForward(tile_length, 1, updateSensors);
+
+			//locate
+			right_distance = getUltrasonicSensorValue(sampleProviderSide);
+			changeConfiguration();
+			left_distance = getUltrasonicSensorValue(sampleProviderSide);
+			changeConfiguration();
+			motor_ultrasonic.rotate(90);
+			float back_distance = getUltrasonicSensorValue(sampleProviderSide);
+			motor_ultrasonic.rotate(-90);
+
+
+
+			orientation = 1;
+			return;
 		}
-		mapping_done = true;
+
+		else if (orientation == 1){
+			tiles = 3;
+		}
+		else if (orientation == 2 | orientation == 3){
+			tiles = 3;
+		}
+		else if (orientation == 4 | orientation == 5 ){
+			tiles = 2;
+		}
+		else if (orientation == 6 | orientation == 7  ){
+			tiles = 1;
+		}
+		moveAlongWall(tiles, updateSensors);
 
 	}
 
-	private void send_variables_to_PC(int distance){
+	private void moveAlongWall(int tiles, boolean updateSensors) throws IOException {
+		float distance = tiles*tile_length;
+		if(updateSensors)
+			goForward(distance, tiles, true);
+		else
+			goForward(distance, tiles, false);
+
+		rotate_via_gyro(90);
+		if(updateSensors)
+			if(sensorUpdate()){
+				n_obstacles++;
+				Sound.beep();
+			}
+		send_variables_to_PC();
+	}
+
+	private static void send_variables_to_PC() throws IOException{
+		dataOutputStream.writeInt(orientation);
+		dataOutputStream.writeInt(position_x);
+		dataOutputStream.writeInt(position_y);
+		dataOutputStream.writeBoolean(sensorUpdate());
+		//dataOutputStream.writeFloat(getUltrasonicSensorValue(sampleProviderSide));
+		//dataOutputStream.writeFloat(getUltrasonicSensorValue(sampleProviderFront));
+		dataOutputStream.writeBoolean(red); //Red
+		dataOutputStream.writeBoolean(green); //Green
+		dataOutputStream.flush();
 
 	}
 
+	public static void goForward(float distance, int n, boolean updateSensors) throws IOException{
 
-	public static void goForward(float distance, int n) throws IOException{
-		positionUpdate(0);
 		float substep = distance/n;
 		for (int i=0; i<n; i++){
 			float first = getGyroValue();
 			pilot.travel(substep);
-			positionUpdate(substep);
-			colorUpdate();
 			float second = getGyroValue();
 			fix_rotation(0, second-first);
 
-			while(pilot.isMoving()){
-				graphicsLCD.clear();
-				graphicsLCD.drawString("x: " + position_x + " ,y: " + position_y, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
-				dataOutputStream.writeInt(orientation);
-				dataOutputStream.writeInt(position_x);
-				dataOutputStream.writeInt(position_y);
-				dataOutputStream.writeFloat(getUltrasonicSensorValue(sampleProviderSide));
-				dataOutputStream.writeFloat(getUltrasonicSensorValue(sampleProviderFront));
-				dataOutputStream.writeBoolean(red); //Red
-				dataOutputStream.writeBoolean(green); //Green
-				dataOutputStream.flush();
-
+			positionUpdate(substep);
+			colorUpdate();
+			if(updateSensors){
+				if(sensorUpdate()){
+					n_obstacles++;
+					Sound.beep();
+				}
 			}
+			enoughObstaclesUpdate();
+			send_variables_to_PC();
+
+
 		}
+	}
+
+	private static boolean sensorUpdate() {
+		boolean obstacle_detected = false;
+		right_distance = getUltrasonicSensorValue(sampleProviderSide);
+		if(right_distance < 0.3){
+			map_to_save[position_x/tile_length][position_y/tile_length] = 3;
+			obstacle_detected = true;
+		}
+
+		return obstacle_detected;
+	}
+
+	private static void enoughObstaclesUpdate() {
+		if(n_obstacles == 6)
+			mapping_done = true;
 	}
 
 	private static void colorUpdate() {
 		if (getColor(1) > 40){
 			Sound.beepSequence();
+			map_to_save[0][0] = position_x;
+			map_to_save[0][1] = position_y;
+			map_to_save[0][2] = orientation;
 			green = true;
 		}
-		
+
 		if (getColor(0) > 50){
 			Sound.beepSequence();
+			map_to_save[1][0] = position_x;
+			map_to_save[1][1] = position_y;
+			map_to_save[1][2] = orientation;
 			red = true;
 		}
 	}
 
 	private static void positionUpdate(float substep) {
+		int o = orientation;
 		switch(orientation){
-		case 1: position_x -= substep;
-		break;
-		case 2: position_y -= substep;
-		break;
-		case 3: position_x += substep;
-		break;
-		case 4: position_y += substep;
-		break;
+		case 0: {
+			if(first_time){
+				position_x+=substep;
+				first_time=false;
+			}else{
+				position_y-=substep;
+			}
 		}
+		break;
+		case 1: position_y -= substep;
+		break;
+		case 2: position_x -= substep;
+		break;
+		case 3: position_y += substep;
+		break;
+		case 4: position_x += substep;
+		break;
+		case 5: position_y -= substep;
+		break;
+		case 6: position_x -= substep;
+		break;
+		case 7: position_y += substep;
+		}
+	}
+	
+	public int[][] getMap(){
+		return map_to_save;
 	}
 
 
@@ -304,7 +378,8 @@ public class Mapping_Robot {
 	}
 
 	public static void rotate_via_gyro(float turn_angle){
-		orientation++;
+		if(orientation!=0)
+			orientation++;
 		float first = getGyroValue();
 		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
 		float angle = 0;
@@ -363,7 +438,7 @@ public class Mapping_Robot {
 			Thread.yield();
 		}
 		graphicsLCD.drawString("angle fix: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
-
+		Delay.msDelay(100);
 	}
 	public static float getGyroValue() {
 		float angle = 0;
