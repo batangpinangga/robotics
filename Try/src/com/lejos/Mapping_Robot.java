@@ -106,8 +106,8 @@ public class Mapping_Robot {
 
 		this.colorAdapter = new ColorAdapter(colorSensor);
 		pilot.setRotateSpeed(200);
-		pilot.setTravelSpeed(35);
-		pilot.setAcceleration(15);
+		pilot.setTravelSpeed(100);
+		pilot.setAcceleration(50);
 
 		sampleProvider_down = ultrasonic_down.getDistanceMode();
 		sampleProvider_up = ultrasonic_up.getDistanceMode();
@@ -119,8 +119,9 @@ public class Mapping_Robot {
 		longside = false;
 		start = true;
 		n_obstacles = 0;
-		map_to_save = new int[2][3];
-		
+		obstacle = false;
+		map_to_save = new int[3][3];
+
 		for (int i=0; i<map_to_save.length; i++){
 			for (int j=0; j<map_to_save[0].length; j++)
 				map_to_save[i][j] = 0;
@@ -170,8 +171,8 @@ public class Mapping_Robot {
 	}
 
 	public void move() throws IOException{
-		pilot.setAcceleration(5);
-		pilot.setTravelSpeed(10);
+		pilot.setAcceleration(50);
+		pilot.setTravelSpeed(100);
 
 		boolean finished = false;
 
@@ -189,6 +190,7 @@ public class Mapping_Robot {
 			map_to_save[2][0] = position_x;
 			map_to_save[2][1] = position_y;
 			map_to_save[2][2] = orientation;
+
 			return true;
 		}
 	}
@@ -254,19 +256,19 @@ public class Mapping_Robot {
 		rotate_via_gyro(90);
 		if(updateSensors)
 			if(sensorUpdate()){
+				obstacle = true;
 				n_obstacles++;
 				Sound.beep();
 			}
 		send_variables_to_PC();
+		obstacle = false;
 	}
 
 	private static void send_variables_to_PC() throws IOException{
 		dataOutputStream.writeInt(orientation);
 		dataOutputStream.writeInt(position_x);
 		dataOutputStream.writeInt(position_y);
-		dataOutputStream.writeBoolean(sensorUpdate());
-		//dataOutputStream.writeFloat(getUltrasonicSensorValue(sampleProviderSide));
-		//dataOutputStream.writeFloat(getUltrasonicSensorValue(sampleProviderFront));
+		dataOutputStream.writeBoolean(obstacle);
 		dataOutputStream.writeBoolean(red); //Red
 		dataOutputStream.writeBoolean(green); //Green
 		dataOutputStream.flush();
@@ -279,19 +281,22 @@ public class Mapping_Robot {
 		for (int i=0; i<n; i++){
 			float first = getGyroValue();
 			pilot.travel(substep);
+			pilot.stop();
 			float second = getGyroValue();
 			fix_rotation(0, second-first);
 
 			positionUpdate(substep);
-			colorUpdate();
 			if(updateSensors){
 				if(sensorUpdate()){
+					obstacle = true;
 					n_obstacles++;
 					Sound.beep();
 				}
 			}
+			colorUpdate();
 			enoughObstaclesUpdate();
 			send_variables_to_PC();
+			obstacle = false;
 
 
 		}
@@ -301,7 +306,6 @@ public class Mapping_Robot {
 		boolean obstacle_detected = false;
 		right_distance = getUltrasonicSensorValue(sampleProviderSide);
 		if(right_distance < 0.3){
-			map_to_save[position_x/tile_length][position_y/tile_length] = 3;
 			obstacle_detected = true;
 		}
 
@@ -358,7 +362,7 @@ public class Mapping_Robot {
 		case 7: position_y += substep;
 		}
 	}
-	
+
 	public int[][] getMap(){
 		return map_to_save;
 	}
@@ -376,81 +380,168 @@ public class Mapping_Robot {
 		colors[1] = color.getGreen();
 		return colors[i];
 	}
-
+	
+	//rotates turn_angle degrees and calls fix_rotation method
 	public static void rotate_via_gyro(float turn_angle){
 		if(orientation!=0)
-			orientation++;
+		orientation++;
 		float first = getGyroValue();
 		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
 		float angle = 0;
 		float angle2;
-		//while (Button.readButtons() != Button.ID_ESCAPE) {
-
-		if(sampleProvider.sampleSize() > 0) {
-			float [] sample2 = new float[sampleProvider.sampleSize()];
-			sampleProvider.fetchSample(sample2, 0);
-			angle2 = sample2[0];
-
-
-			pilot.rotate(turn_angle);
-			float second = getGyroValue();
-			graphicsLCD.clear();
+    	//while (Button.readButtons() != Button.ID_ESCAPE) {
+    			
+    		if(sampleProvider.sampleSize() > 0) {
+				float [] sample2 = new float[sampleProvider.sampleSize()];
+		    	sampleProvider.fetchSample(sample2, 0);
+				angle2 = sample2[0];
+    		
+    		
+    	  pilot.rotate(turn_angle);
+    	  float second = getGyroValue();
+    	  graphicsLCD.clear();
+			graphicsLCD.drawString("angle: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 			fix_rotation(turn_angle, (second-first));
+    		}
+    		//Thread.yield();
+    }
+	
+	static float getUltrasonicSensorValue(SampleProvider sampleProvider) {
+		//SampleProvider sampleProvider = ultrasonic_down.getDistanceMode();
+		if(sampleProvider.sampleSize() > 0) {
+			float [] samples = new float[sampleProvider.sampleSize()];
+			sampleProvider.fetchSample(samples, 0);
+			return samples[0];
 		}
-		Thread.yield();
+		return -1;		
 	}
-
 	//fix rotation error
 	public static void fix_rotation(float turn_angle, float angle2){
 		boolean finish = false;
 		motor_left.resetTachoCount();
 		motor_right.resetTachoCount();
-
+		
 		motor_left.rotateTo(0);
 		motor_right.rotateTo(0);
-		motor_left.setAcceleration(800);
-		motor_right.setAcceleration(800);
-
-		motor_left.setSpeed(10);
-		motor_right.setSpeed(10);
+	    motor_left.setAcceleration(800);
+	    motor_right.setAcceleration(800);
+	    
+	    motor_left.setSpeed(20);
+	    motor_right.setSpeed(20);
 		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
 		float first = getGyroValue();
 		float second = 0;
-
+		
 		while (!finish ) {
 			second = getGyroValue();
 			if(second-first > turn_angle-angle2) {
-				motor_left.forward();
-				motor_right.backward();
-			}
-			else if(second-first < turn_angle-angle2) {
-				motor_left.backward();
-				motor_right.forward();
-			}
-			else {
-				motor_left.stop(true);
-				motor_right.stop(true);
-				finish = true;
-			}
-
-			Delay.msDelay(10);
-
-			Thread.yield();
+					motor_left.forward();
+					motor_right.backward();
+				}
+				else if(second-first < turn_angle-angle2) {
+					motor_left.backward();
+					motor_right.forward();
+				}
+				else {
+					motor_left.stop(true);
+					motor_right.stop(true);
+					finish = true;
+				}
+	    	
+				Delay.msDelay(10);
+			
+			//Thread.yield();
 		}
 		graphicsLCD.drawString("angle fix: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
-		Delay.msDelay(100);
+
 	}
 	public static float getGyroValue() {
 		float angle = 0;
 		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
 		if(sampleProvider.sampleSize() > 0) {
-
+			
 			float [] sample = new float[sampleProvider.sampleSize()];
-			sampleProvider.fetchSample(sample, 0);
-			angle = sample[0];
+	    	sampleProvider.fetchSample(sample, 0);
+			 angle = sample[0];
 		}
 		return angle;
 	}
+//	public static void rotate_via_gyro(float turn_angle){
+//		if(orientation!=0)
+//			orientation++;
+//		float first = getGyroValue();
+//		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
+//		float angle = 0;
+//		float angle2;
+//		//while (Button.readButtons() != Button.ID_ESCAPE) {
+//
+////		if(sampleProvider.sampleSize() > 0) {
+////			float [] sample2 = new float[sampleProvider.sampleSize()];
+////			sampleProvider.fetchSample(sample2, 0);
+////			angle2 = sample2[0];
+//
+//
+//			pilot.rotate(turn_angle);
+//			float second = getGyroValue();
+//			graphicsLCD.clear();
+//			fix_rotation(turn_angle, (second-first));
+////		}
+//		Thread.yield();
+//	}
+//
+//	//fix rotation error
+//	public static void fix_rotation(float turn_angle, float angle2){
+//		boolean finish = false;
+//
+//		motor_left.resetTachoCount();
+//		motor_right.resetTachoCount();
+//
+//		motor_left.rotateTo(0);
+//		motor_right.rotateTo(0);
+//		motor_left.setAcceleration(800);
+//		motor_right.setAcceleration(800);
+//
+//		motor_left.setSpeed(10);
+//		motor_right.setSpeed(10);
+//		float first = getGyroValue();
+//		float second = 0;
+//
+//		while (!finish ) {
+//			second = getGyroValue();
+//
+//
+//			if(second-first > turn_angle-angle2) {
+//				//pilot.rotate(-0.1);
+//				motor_left.forward();
+//				motor_right.backward();
+//			}
+//			else if(second-first < turn_angle-angle2) {
+//				//				pilot.rotate(0.1);
+//				motor_left.backward();
+//				motor_right.forward();
+//			}
+//			else {
+//				//				pilot.stop();
+//				motor_left.stop(true);
+//				motor_right.stop(true);
+//				finish = true;
+//			}
+//			Delay.msDelay(10);
+//		}
+//		graphicsLCD.drawString("angle fix: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
+//		Thread.yield();
+//	}
+//	public static float getGyroValue() {
+//		float angle = 0;
+//		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
+//		if(sampleProvider.sampleSize() > 0) {
+//
+//			float [] sample = new float[sampleProvider.sampleSize()];
+//			sampleProvider.fetchSample(sample, 0);
+//			angle = sample[0];
+//		}
+//		return angle;
+//	}
 
 	/**
 	 * configuration of ultrasonic-sensors. Initial: 1 (means wall is left of the robot)
@@ -473,15 +564,5 @@ public class Mapping_Robot {
 			positionWall = -1*configurationInitial;
 			threshold_side = threshold_ev3_side;
 		}
-	}
-
-	static float getUltrasonicSensorValue(SampleProvider sampleProvider) {
-		//SampleProvider sampleProvider = ultrasonic_down.getDistanceMode();
-		if(sampleProvider.sampleSize() > 0) {
-			float [] samples = new float[sampleProvider.sampleSize()];
-			sampleProvider.fetchSample(samples, 0);
-			return samples[0];
-		}
-		return -1;		
 	}
 }

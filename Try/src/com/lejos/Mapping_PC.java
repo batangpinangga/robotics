@@ -71,7 +71,7 @@ public class Mapping_PC extends JFrame{
 		tile_map = tile_length*zoom;
 		map = new Map();
 		localization = new MCL(5000,map);
-		
+
 	}
 
 	public static void main(String[] Args) throws UnknownHostException, IOException
@@ -136,25 +136,26 @@ public class Mapping_PC extends JFrame{
 			}
 			start = 1;
 		}
-		
+
 		else{
 
-			displayRobot(g);
 			g.setColor(Color.black);
 
 			if (green && !green_done){
 				drawColorTile(g, Color.green, position_x, position_y);
 				green_done = true; //otherwise it will always draw green tiles
-				
+
 			}
 
 			else if (red && !red_done){
 				drawColorTile(g, Color.red, position_x, position_y);
 				red_done = true;
-				
-			}
 
-			else if(obstacle){
+			}
+			else 
+				displayRobot(g);
+
+			if(obstacle){
 
 				switch(orientation){
 				case 0: drawObstacle(g, Color.black, position_x+tile_length, position_y);
@@ -166,7 +167,7 @@ public class Mapping_PC extends JFrame{
 				case 3: drawObstacle(g, Color.black, position_x-tile_length, position_y);
 				break;
 				}
-				
+
 			}
 		}
 
