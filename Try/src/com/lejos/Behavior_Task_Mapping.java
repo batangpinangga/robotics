@@ -9,12 +9,11 @@ import lejos.robotics.subsumption.Behavior;
 public class Behavior_Task_Mapping implements Behavior{
 	GraphicsLCD graphicsLCD;
 	private Mapping_Robot mapping;
-	private Mapping_PC map_pc;
-	
 	private boolean suppressed = false;
 	public static int configuration;
 
-	public Behavior_Task_Mapping(Robot robot) {
+	public Behavior_Task_Mapping(Robot robot, int i) {
+		configuration = i;
 		this.graphicsLCD = robot.getLCD();
 		mapping = new Mapping_Robot(robot, configuration);
 	}
@@ -33,24 +32,42 @@ public class Behavior_Task_Mapping implements Behavior{
 		suppressed = false;
 		graphicsLCD.clear();
 		
-		while(!suppressed){
+		if(!suppressed){
 			graphicsLCD.drawString("MAPPING", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 
-			try {
-				mapping.connect(suppressed);
-				mapping.locate();
-				mapping.move();
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-			mapping.getMap();
+			mapping.connect(suppressed);
 			
 			Thread.yield();
 			try {
-				Thread.sleep(10);
+				Thread.sleep(5);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
+			try {
+				mapping.locate(suppressed);
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			Thread.yield();
+			try {
+				Thread.sleep(5);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			try {
+				mapping.move(suppressed);
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			Thread.yield();
+			try {
+				Thread.sleep(5);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			mapping.getMap();
 		}
 	}
 

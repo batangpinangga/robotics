@@ -16,14 +16,12 @@ import javax.swing.JFrame;
 import localization.MCL;
 import localization.Map;
 
-public class Mapping_PC extends JFrame{
-	private static float side;
-	private static float front;
-	private static float travel;
+public class Mapping_PC extends JFrame{	
 	private static int start;
-	private static int pred_travel;
-	private static int x_offset = 200;
-	private static int y_offset = 200;
+	private static int red_x;
+	private static int red_y;
+	private static int green_x;
+	private static int green_y;
 	static int maze_length = 198;
 	static int tile_length = 33;
 	int maze_map;
@@ -39,11 +37,6 @@ public class Mapping_PC extends JFrame{
 	private static int width = maze_length*3;
 	private static int height = maze_length*3;
 
-	private static int stepwidth = 5;
-	private float expected_distance_obstacle = 0.4f;
-//	private static Map map;
-//	private static MCL localization;
-
 
 	static InputStream inputStream;
 	static DataInputStream dataInputStream;
@@ -56,11 +49,11 @@ public class Mapping_PC extends JFrame{
 		super("Map_Miner_Robot");
 		setSize(width,height);
 		setVisible(true);
-		side = 0;
-		front = 0;
-		travel = 0;
 		start = 0;
-		pred_travel = 0;
+		red_x =0;
+		red_y = 0;
+		green_x = 0;
+		green_y = 0;
 		zoom = 3;
 		red = false;
 		green = false;
@@ -69,9 +62,6 @@ public class Mapping_PC extends JFrame{
 		orientation = 0;
 		maze_map = maze_length*zoom;
 		tile_map = tile_length*zoom;
-//		map = new Map();
-//		localization = new MCL(5000,map);
-
 	}
 
 	public static void main(String[] Args) throws UnknownHostException, IOException
@@ -96,8 +86,6 @@ public class Mapping_PC extends JFrame{
 				orientation = dataInputStream.readInt();
 				position_x = dataInputStream.readInt();
 				position_y = dataInputStream.readInt();
-				//side= dataInputStream.readFloat();
-				//front = dataInputStream.readFloat();
 				obstacle = dataInputStream.readBoolean();
 				red = dataInputStream.readBoolean();
 				green = dataInputStream.readBoolean();
@@ -139,6 +127,8 @@ public class Mapping_PC extends JFrame{
 
 			if (green && !green_done){
 				drawColorTile(g, Color.green, position_x, position_y);
+				green_y = position_y;
+				green_x = position_x;
 				green_done = true; //otherwise it will always draw green tiles
 
 			}
@@ -146,7 +136,8 @@ public class Mapping_PC extends JFrame{
 			else if (red && !red_done){
 				drawColorTile(g, Color.red, position_x, position_y);
 				red_done = true;
-
+				red_x = position_x;
+				red_y = position_y;
 			}
 			else 
 				displayRobot(g);
@@ -171,19 +162,8 @@ public class Mapping_PC extends JFrame{
 
 	public void displayRobot(Graphics g){
 		g.setColor(Color.blue);
-		g.fillRect(position_x*zoom, position_y*zoom, tile_map, tile_map);
-		//TODO: paint Roboter
-
-		//		switch(front){
-		//		case 1: g2.draw(new Line2D.Double((int) x_offset, (int) y_offset+travel*stepwidth, (int) 5, (int) 5));
-		//		break;
-		//		case 2: g2.draw(new Line2D.Double((int) x_offset + travel*stepwidth, (int) height-y_offset, (int) 5, (int) 5));
-		//		break;
-		//		case 3: g2.draw(new Line2D.Double((int) width-x_offset, (int) (height-y_offset-travel)*stepwidth, (int) 5, (int) 5)); 
-		//		break;
-		//		case 4: g2.draw(new Line2D.Double((int) (width-x_offset-travel)*stepwidth, (int)y_offset, (int)5, (int)5));
-		//		break;
-		//		}	
+		if(!(position_x==red_x && position_y == red_y) && !(position_x==green_x && position_y == green_y))
+			g.fillRect(position_x*zoom, position_y*zoom, tile_map, tile_map);
 	}
 
 	public void drawColorTile(Graphics g, Color color, int x, int y){

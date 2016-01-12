@@ -1,12 +1,14 @@
 package com.lejos;
 
 import lejos.hardware.Button;
+import lejos.hardware.Sound;
 import lejos.hardware.lcd.GraphicsLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 
 import lejos.hardware.sensor.EV3ColorSensor;
 import lejos.hardware.sensor.EV3GyroSensor;
-
+import lejos.robotics.Color;
+import lejos.robotics.ColorAdapter;
 import lejos.robotics.SampleProvider;
 import lejos.robotics.navigation.DifferentialPilot;
 import lejos.utility.Delay;
@@ -24,6 +26,7 @@ public class Task_Execution {
 	static EV3LargeRegulatedMotor motor_right;
 	static EV3LargeRegulatedMotor motor_grabber;
 
+	static ColorAdapter colorAdapter;
 
 	static float side;
 	static float front;
@@ -83,12 +86,103 @@ public class Task_Execution {
 		return direction;
 	}
 
-	public void go(boolean stop){
-		this.stop = stop;
-		if(!stop)
-			goToGreen(goToRed());
-		if(!stop)
+	//	public void go(boolean stop){
+	//		this.stop = stop;
+	//		if(!stop)
+	//			goToGreen(goToRed());
+	//		if(!stop)
+	//			closeGrabber();
+	//	}
+
+	public void go(boolean suppressed){
+		Task_Execution.stop = suppressed;
+		if(!stop){
+			int turn_degree = 0;
+			lastorientation = map[2][2];
+			int last = lastorientation;
+			if((lastorientation==1 | lastorientation==5) && !stop){
+				turn_degree = -90;
+			}else if((lastorientation==2 | lastorientation==6) && !stop){
+				turn_degree = 180;
+			}else if((lastorientation==3 | lastorientation==7) && !stop){
+				turn_degree = 90;
+			}
+			if(turn_degree!=0 && !stop)
+				rotate_via_gyro(turn_degree);
+			gooo(turn_degree,0, 1);
+			gooo(turn_degree,0, 2);
+		}
+	}
+
+	private void gooo(int turn_degree,int extra, int step) {
+		// TODO Auto-generated method stub
+		boolean go = stop;
+		if(step ==1 && !stop){
+			int degreee = 0;
+			int dist_x = map[1][0]-map[2][0];
+			graphicsLCD.clear();
+			graphicsLCD.clear();
+			goForward(dist_x, Math.abs(dist_x/tile_length));
+			rotate_via_gyro(90);
+			int dist_y = map[2][1]-map[1][1];
+			goForward(dist_y, Math.abs(dist_y/tile_length));
+			//if(!(getColor(0)> 50)){
+			//	degreee =colorDetection(1);
+			//}
+			//colorDetection();
+			Sound.beepSequenceUp();
+			Button.waitForAnyEvent();
+			openGrabber();
+
+
+
+		}else if(step == 2 && !stop){
+			if(extra!=0)
+				rotate_via_gyro(-1*extra);
+			Delay.msDelay(100);
+			rotate_via_gyro(-90);
+			Delay.msDelay(100);
+			int dist_x = map[0][0]-map[1][0];
+
+			goForward(dist_x, Math.abs(dist_x/tile_length));
+			rotate_via_gyro(90);
+			Delay.msDelay(100);
+			int dist_y = map[1][1]-map[0][1];
+
+			goForward(dist_y, Math.abs(dist_y/tile_length));
+			//if(!(getColor(1)> 40)){
+			//int degreee =colorDetection(2);
+			//}
 			closeGrabber();
+			Sound.beepSequenceUp();
+		}
+		//goForward(, n);
+	}
+
+	private int colorDetection(int step) {
+
+		// TODO Auto-generated method stub
+		boolean finished = false;
+		int result = 0;
+		while((step == 1 && getColor(0)>50) | (step==2 && getColor(1)>40)){
+			if(result <360){
+				result +=90;
+				rotate_via_gyro(90);
+			}
+		}
+		return result;
+	}
+	public static int getColor(int i){
+		Color color = colorAdapter.getColor();
+		int[] colors = new int[2];
+		graphicsLCD.clear();
+		graphicsLCD.drawString("R : " + color.getRed(), 10, 20 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT); // red tile: R~60
+		graphicsLCD.drawString("G : " + color.getGreen(), 10, 40 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT); //green tile: G~45
+		graphicsLCD.drawString("B : " + color.getBlue(), 10, 60 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT);
+
+		colors[0] = color.getRed();
+		colors[1] = color.getGreen();
+		return colors[i];
 	}
 
 	private void openGrabber() {
@@ -117,7 +211,7 @@ public class Task_Execution {
 
 
 	private int goToTile(int current, int goal, int tiles){
-			int diff = getDifference(current, goal); //robot-red, red-green
+		int diff = getDifference(current, goal); //robot-red, red-green
 		if(!stop){
 			int reverse = 1;
 
@@ -289,6 +383,6 @@ public class Task_Execution {
 	}
 
 	public void stop(boolean stop){
-		this.stop =stop;
+		Task_Execution.stop =stop;
 	}
 }

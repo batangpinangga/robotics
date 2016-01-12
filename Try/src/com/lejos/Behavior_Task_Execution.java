@@ -8,23 +8,27 @@ import lejos.robotics.subsumption.Behavior;
 
 public class Behavior_Task_Execution implements Behavior{
 	private GraphicsLCD graphicsLCD;
-
+	Robot robot;
 	private boolean suppressed = false;
 
 	private int[][]map;
 
 	private Task_Execution task;
 
-	public Behavior_Task_Execution(Robot robot){
+	public Behavior_Task_Execution(Robot robot, int[][] is){
+		this.robot = robot;
+		map = is;
 		this.graphicsLCD = robot.getLCD();
 		map = new int[3][3];
-		task = new Task_Execution(robot, map);
+		
 	}
 
 	@Override
 	public boolean takeControl() {
-		if(Button.LEFT.isDown())
+		if(Button.LEFT.isDown()){
+			task = new Task_Execution(robot, map);
 			return true;
+		}
 		else
 			return false;
 	}
@@ -33,7 +37,7 @@ public class Behavior_Task_Execution implements Behavior{
 	public void action() {
 		suppressed   = false;
 		graphicsLCD.clear();
-		while(!suppressed){
+		if(!suppressed){
 			graphicsLCD.drawString("EXECUTION", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 			task.go(suppressed);
 			Thread.yield();
