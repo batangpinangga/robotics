@@ -1,0 +1,66 @@
+package com.lejos;
+
+import java.io.IOException;
+
+import lejos.hardware.Button;
+import lejos.hardware.lcd.GraphicsLCD;
+import lejos.robotics.subsumption.Behavior;
+
+public class Behavior_Task_Mapping implements Behavior{
+	GraphicsLCD graphicsLCD;
+	private Mapping_Robot mapping;
+	
+	private boolean suppressed = false;
+	public static int configuration;
+
+	public Behavior_Task_Mapping(Robot robot) {
+		this.graphicsLCD = robot.getLCD();
+	//	mapping = new Mapping_Robot(robot, configuration);
+	}
+
+	@Override
+	public boolean takeControl() {
+		if (Button.DOWN.isDown()){
+			return true;
+		}
+		else
+			return false;
+	}
+
+	@Override
+	public void action() {
+		suppressed = false;
+		graphicsLCD.clear();
+		
+		while(!suppressed){
+			graphicsLCD.drawString("MAPPING", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
+
+//			try {
+//				mapping.locate();
+//				mapping.move();
+//			} catch (IOException e1) {
+//				e1.printStackTrace();
+//			}
+//			mapping.getMap();
+			
+			Thread.yield();
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	@Override
+	public void suppress() {
+		suppressed = true;
+		mapping.stop(suppressed);
+		graphicsLCD.clear();
+	}
+
+	public int[][] getMap() {
+		return mapping.getMap();
+	}
+
+}
