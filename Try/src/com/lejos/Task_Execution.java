@@ -1,11 +1,14 @@
 package com.lejos;
 
+import lejos.hardware.Button;
+import lejos.hardware.Sound;
 import lejos.hardware.lcd.GraphicsLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 
 import lejos.hardware.sensor.EV3ColorSensor;
 import lejos.hardware.sensor.EV3GyroSensor;
-
+import lejos.robotics.Color;
+import lejos.robotics.ColorAdapter;
 import lejos.robotics.SampleProvider;
 import lejos.robotics.navigation.DifferentialPilot;
 import lejos.utility.Delay;
@@ -20,6 +23,7 @@ public class Task_Execution {
 	static GraphicsLCD graphicsLCD;
 	static DifferentialPilot pilot;
 	static EV3LargeRegulatedMotor motor_grabber;
+	static ColorAdapter colorAdapter;
 
 
 	static float side;
@@ -57,6 +61,7 @@ public class Task_Execution {
 		this.gyroSensor = gyroSensor;
 		this.map = map;
 		this.motor_grabber = motor_grabber;
+		this.colorAdapter = new ColorAdapter(colorSensor);
 
 		motor_grabber.setSpeed(200);
 		lastorientation = map[2][2];
@@ -87,10 +92,92 @@ public class Task_Execution {
 	}
 
 	public void go(){
-		goToGreen(goToRed());
-		closeGrabber();
+		int turn_degree = 0;
+		lastorientation = map[2][2];
+		if(lastorientation ==1 | lastorientation ==5){
+			turn_degree = -90;
+		}else if(lastorientation ==2 | lastorientation ==6){
+			turn_degree = 180;
+		}else if(lastorientation ==3 | lastorientation ==7){
+			turn_degree = 90;
+		}
+		if(turn_degree!=0)
+			rotate_via_gyro(turn_degree);
+		gooo(turn_degree,0, 1);
+		gooo(turn_degree,0, 2);
+		//gooo(turn_degree, 2);
+		//goToGreen(goToRed());
+		//closeGrabber();
 	}
 
+	private void gooo(int turn_degree,int extra, int step) {
+		// TODO Auto-generated method stub
+		if(step ==1){
+			int degreee = 0;
+			int dist_x = map[1][0]-map[2][0];
+			goForward(dist_x, Math.abs(dist_x/tile_length));
+			rotate_via_gyro(90);
+			int dist_y = map[2][1]-map[1][1];
+			goForward(dist_y, Math.abs(dist_y/tile_length));
+			//if(!(getColor(0)> 50)){
+			//	degreee =colorDetection(1);
+			//}
+			//colorDetection();
+			Sound.beepSequenceUp();
+			Button.waitForAnyEvent();
+			openGrabber();
+			
+			
+
+		}else if(step == 2){
+			if(extra!=0)
+				rotate_via_gyro(-1*extra);
+			Delay.msDelay(100);
+			Button.waitForAnyEvent();
+			rotate_via_gyro(-90);
+			Delay.msDelay(100);
+			int dist_x = map[0][0]-map[1][0];
+			
+			goForward(dist_x, Math.abs(dist_x/tile_length));
+			rotate_via_gyro(90);
+			Delay.msDelay(100);
+			int dist_y = map[1][1]-map[0][1];
+			
+			goForward(dist_y, Math.abs(dist_y/tile_length));
+			//if(!(getColor(1)> 40)){
+				//int degreee =colorDetection(2);
+			//}
+			closeGrabber();
+			Sound.beepSequenceUp();
+		}
+		//goForward(, n);
+	}
+
+	private int colorDetection(int step) {
+		
+		// TODO Auto-generated method stub
+		boolean finished = false;
+		int result = 0;
+		while((step == 1 && getColor(0)>50) | (step==2 && getColor(1)>40)){
+			if(result <360){
+				result +=90;
+				rotate_via_gyro(90);
+			}
+		}
+		return result;
+	}
+	public static int getColor(int i){
+		Color color = colorAdapter.getColor();
+		int[] colors = new int[2];
+		graphicsLCD.clear();
+		graphicsLCD.drawString("R : " + color.getRed(), 10, 20 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT); // red tile: R~60
+		graphicsLCD.drawString("G : " + color.getGreen(), 10, 40 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT); //green tile: G~45
+		graphicsLCD.drawString("B : " + color.getBlue(), 10, 60 , GraphicsLCD.VCENTER|GraphicsLCD.LEFT);
+
+		colors[0] = color.getRed();
+		colors[1] = color.getGreen();
+		return colors[i];
+	}
 	private void openGrabber() {
 		motor_grabber.rotate(-90);
 	}
@@ -106,9 +193,76 @@ public class Task_Execution {
 	}
 
 	private void goToGreen(int tiles) {
-		goToTile(1,0, tiles);
+		goGreen(1,0,tiles);
+		//goToTile(1,0, tiles);
 	}
 
+
+	private void goGreen(int current, int goal, int tiles) {
+		int diff = getDifference(current, goal)+1; //robot-red, red-green
+		goForward(tiles, tile_length);
+		positionUpdate(-1*tiles);
+		rotate_via_gyro(90);
+		lastorientation++;
+		if(lastorientation-goal==0){
+			if(position_y-map[goal][1]==0){
+				diff = position_x-map[goal][0];
+				goForward(Math.abs(diff), diff/tile_length);
+				openGrabber();
+				Sound.beepSequence();
+			}
+
+			else if (position_x-map[goal][0]==0){
+				diff = position_y-map[goal][1];
+				goForward(Math.abs(diff), diff/tile_length);
+				openGrabber();
+				Sound.beepSequence();
+			}
+		}else if(diff<0){
+			for(int i = 0; i < Math.abs(diff)-1;i++){
+				int dist =  getDistance(lastorientation);
+				goForward(dist, dist/tile_length);
+				positionUpdate(-1*dist);
+				rotate_via_gyro(90);
+				lastorientation++;
+			}
+			
+			if(position_y-map[goal][1]==0){
+				diff = position_x-map[goal][0];
+				goForward(Math.abs(diff), diff/tile_length);
+				openGrabber();
+				Sound.beepSequence();
+			}
+
+			else if (position_x-map[goal][0]==0){
+				diff = position_y-map[goal][1];
+				goForward(Math.abs(diff), diff/tile_length);
+				openGrabber();
+				Sound.beepSequence();
+			}
+		}else{
+			rotate_via_gyro(90);
+			lastorientation--;
+			for(int i=0; i<diff-1; i++){
+				int distance = getDistance(lastorientation);
+				goForward(distance, distance/tile_length);
+				rotate_via_gyro(-90);
+				positionUpdate(distance);
+				lastorientation--;
+			}
+
+			if(position_y-map[goal][1]==0){
+				diff = position_x-map[goal][0];
+				goForward(Math.abs(diff), diff/tile_length);
+			}
+
+			else if (position_x-map[goal][0]==0){
+				diff = position_y-map[goal][1];
+				goForward(Math.abs(diff), diff/tile_length);
+			}
+			
+		}
+	}
 
 	private int goToTile(int current, int goal, int tiles){
 		int diff = getDifference(current, goal); //robot-red, red-green
@@ -122,12 +276,14 @@ public class Task_Execution {
 		}
 		else{
 			rotate_via_gyro(90);
+			lastorientation--;
 		}
 
 		for(int i=0; i<diff-1; i++){
-			int distance = getDistance(lastorientation-1);
+			int distance = getDistance(lastorientation);
 			goForward(distance, distance/tile_length);
 			rotate_via_gyro(-90*reverse);
+			positionUpdate(distance);
 			lastorientation-=reverse;
 		}
 
@@ -142,7 +298,12 @@ public class Task_Execution {
 		}
 		else
 			diff = 0;
-		return diff;
+		
+		rotate_via_gyro(-180);
+		Sound.beepSequenceUp();
+		Button.waitForAnyPress();
+		closeGrabber();
+		return Math.abs(diff);
 	}
 
 	public int getDifference(int i, int j){
@@ -171,7 +332,7 @@ public class Task_Execution {
 
 
 	private static void positionUpdate(float substep) {
-		switch(orientation){
+		switch(lastorientation){
 		case 1: position_y += substep;
 		break;
 		case 2: position_x += substep;
@@ -202,52 +363,52 @@ public class Task_Execution {
 	}
 
 	public static void rotate_via_gyro(float turn_angle){
-
+		if(orientation!=0)
+		orientation++;
+		float first = getGyroValue();
 		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
-		float angle;
-		//while (Button.readButtons() != Button.ID_ESCAPE) {
-		if(sampleProvider.sampleSize() > 0) {
-			float [] sample = new float[sampleProvider.sampleSize()];
-			sampleProvider.fetchSample(sample, 0);
-			angle = sample[0];
-
-
-			pilot.rotate(turn_angle);
-			graphicsLCD.clear();
-			graphicsLCD.drawString("angle: "+ angle, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
-			fix_rotation(turn_angle, angle);
-		}
-		Thread.yield();
-	}
+		float angle = 0;
+		float angle2;
+    	//while (Button.readButtons() != Button.ID_ESCAPE) {
+    			
+    		if(sampleProvider.sampleSize() > 0) {
+				float [] sample2 = new float[sampleProvider.sampleSize()];
+		    	sampleProvider.fetchSample(sample2, 0);
+				angle2 = sample2[0];
+    		
+    		
+    	  pilot.rotate(turn_angle);
+    	  float second = getGyroValue();
+    	  graphicsLCD.clear();
+			graphicsLCD.drawString("angle: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
+			fix_rotation(turn_angle, (second-first));
+    		}
+    		//Thread.yield();
+    }
 
 	public static void fix_rotation(float turn_angle, float angle2){
 		boolean finish = false;
 		motor_left.resetTachoCount();
 		motor_right.resetTachoCount();
-
+		
 		motor_left.rotateTo(0);
 		motor_right.rotateTo(0);
-		motor_left.setAcceleration(800);
-		motor_right.setAcceleration(800);
-
-		motor_left.setSpeed(100);
-		motor_right.setSpeed(100);
+	    motor_left.setAcceleration(800);
+	    motor_right.setAcceleration(800);
+	    
+	    motor_left.setSpeed(20);
+	    motor_right.setSpeed(20);
 		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
+		float first = getGyroValue();
+		float second = 0;
+		
 		while (!finish ) {
-
-			if(sampleProvider.sampleSize() > 0) {
-				float [] sample = new float[sampleProvider.sampleSize()];
-				sampleProvider.fetchSample(sample, 0);
-				float angle = sample[0];
-
-				graphicsLCD.clear();
-				graphicsLCD.drawString("angle: "+ angle, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
-
-				if(angle > turn_angle-angle2) {
+			second = getGyroValue();
+			if(second-first > turn_angle-angle2) {
 					motor_left.forward();
 					motor_right.backward();
 				}
-				else if(angle < turn_angle-angle2) {
+				else if(second-first < turn_angle-angle2) {
 					motor_left.backward();
 					motor_right.forward();
 				}
@@ -256,11 +417,12 @@ public class Task_Execution {
 					motor_right.stop(true);
 					finish = true;
 				}
-
+	    	
 				Delay.msDelay(10);
-			}
-			Thread.yield();
+			
+			//Thread.yield();
 		}
+		graphicsLCD.drawString("angle fix: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 
 	}
 
