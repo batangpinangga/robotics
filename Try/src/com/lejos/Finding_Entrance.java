@@ -1,10 +1,8 @@
 package com.lejos;
 
-import lejos.hardware.Button;
 import lejos.hardware.lcd.GraphicsLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.motor.NXTRegulatedMotor;
-import lejos.hardware.port.MotorPort;
 import lejos.hardware.sensor.EV3GyroSensor;
 import lejos.hardware.sensor.EV3UltrasonicSensor;
 import lejos.hardware.sensor.NXTUltrasonicSensor;
@@ -12,13 +10,18 @@ import lejos.robotics.SampleProvider;
 import lejos.robotics.navigation.DifferentialPilot;
 import lejos.utility.Delay;
 
-public class Finding_Entrance_Emre {
+public class Finding_Entrance{
 	static EV3UltrasonicSensor ultrasonic_up;
 	static NXTUltrasonicSensor ultrasonic_down;
-	static NXTRegulatedMotor motor_ultrasonic;
 	static EV3GyroSensor gyroSensor;
+
+	static NXTRegulatedMotor motor_ultrasonic;
 	static EV3LargeRegulatedMotor motor_left;
 	static EV3LargeRegulatedMotor motor_right;
+
+	static GraphicsLCD graphicsLCD;
+	static DifferentialPilot pilot;
+
 	static SampleProvider sampleProviderFront;
 	static SampleProvider sampleProviderSide;
 	static SampleProvider sampleProvider_down;
@@ -28,8 +31,6 @@ public class Finding_Entrance_Emre {
 	static float threshold_side;
 	static float threshold_front;
 	static int positionWall;
-	static GraphicsLCD graphicsLCD;
-	static DifferentialPilot pilot;
 	static int configurationInitial;
 	private static boolean stop = false;
 
@@ -37,23 +38,20 @@ public class Finding_Entrance_Emre {
 	static float distance_wall_up = 0.34f; // between 33 and 34
 	static float distance_wall_down = 0.20f; // between 18 and 20
 
-	public Finding_Entrance_Emre(EV3UltrasonicSensor ultrasonic_up,
-			NXTUltrasonicSensor ultrasonic_down,
-			NXTRegulatedMotor motor_ultrasonic,
-			EV3LargeRegulatedMotor motor_left,
-			EV3LargeRegulatedMotor motor_right,
-			GraphicsLCD graphicsLCD,
-			DifferentialPilot pilot, 
-			EV3GyroSensor gyroSensor)
+	public Finding_Entrance(Robot robot)
 	{
-		this.ultrasonic_up = ultrasonic_up;
-		this.ultrasonic_down = ultrasonic_down;
-		this.motor_ultrasonic = motor_ultrasonic;
-		this.motor_left = motor_left;
-		this.motor_right = motor_right;
-		this.graphicsLCD = graphicsLCD;
-		this.pilot =  pilot;
-		this.gyroSensor = gyroSensor;
+		Finding_Entrance.graphicsLCD = robot.getLCD();
+		Finding_Entrance.pilot = robot.getPilot();
+
+		Finding_Entrance.ultrasonic_up = robot.getUltrasonic_up();
+		Finding_Entrance.ultrasonic_down = robot.getUltrasonic_down();
+		Finding_Entrance.gyroSensor = robot.getGyroSensor();
+
+		Finding_Entrance.motor_ultrasonic = robot.getUltrasonicMotor();
+		Finding_Entrance.motor_left = robot.getLeftMotor();
+		Finding_Entrance.motor_right = robot.getRightMotor();
+
+
 		threshold_side = threshold_ev3_side;
 
 		configurationInitial = 1;
@@ -68,10 +66,10 @@ public class Finding_Entrance_Emre {
 	}
 
 	public void locate(boolean stop){
-		this.stop = stop;
+		Finding_Entrance.stop = stop;
 		inside = false;
 		graphicsLCD.clear();
-		graphicsLCD.drawString("locate...", graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
+		graphicsLCD.drawString("locate...", graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 
 		// not detected: 0; wall_left: -1; wall_right: 1
 
@@ -95,30 +93,12 @@ public class Finding_Entrance_Emre {
 		}
 
 
-
-		// case: sensors have to rotate
-		/*if (downUltraValue > distance_wall_down && upUltraValue > distance_wall_up && startPosition){
-			motor_ultrasonic.rotate(90);
-			startPosition = false;
-		}
-
-		else if (downUltraValue > distance_wall_down && upUltraValue > distance_wall_up && !startPosition){
-			motor_ultrasonic.rotate(-90);
-			startPosition = true;
-		}
-
-		if(downUltraValue <= distance_wall_down){
-			positionWall = 1;
-		 */
-
 		while(!inside){
 			if(!stop){
 				//define forward and side value
 				sideValue = getUltrasonicSensorValue(sampleProviderSide);
 				frontValue = getUltrasonicSensorValue(sampleProviderFront);
 				graphicsLCD.clear();
-				//	graphicsLCD.drawString("front = "+frontValue, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
-				//	graphicsLCD.drawString("side = "+sideValue, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 
 				move(frontValue,sideValue,positionWall);
 				Thread.yield();
@@ -126,50 +106,50 @@ public class Finding_Entrance_Emre {
 		}
 
 	}
-	//rotate_via_gyro(90);
-	//}
-
-	/*if(upUltraValue <= distance_wall_up){
-			positionWall = -1;
-			while(!inside){
-				//define forward and side value
-				sideValue = getUltrasonicSensorValue(sampleProviderSide);
-				frontValue = getUltrasonicSensorValue(sampleProviderFront);
-
-				move(frontValue,sideValue,positionWall);
-			}
-		}*/
 
 
+	public static boolean isItInside(){
+		float sum = 0;
+		sum += getUltrasonicSensorValue(sampleProviderSide);
+		changeConfiguration();
+		sum += getUltrasonicSensorValue(sampleProviderSide);
+		changeConfiguration();
+		if(sum >2.00f || sum<1.3f){
+			return false;
+		}
+		return true;
+	}
 	void move(float front, float side,int positionWall){
 		//motor_left.setSpeed(500);
 		//motor_right.setSpeed(500);
 		float distanceSide =0;
 		float distanceFront = 0;
-		//		boolean stop = false;
+
 		int situation =0;
 		boolean stop_local = false;
 		if(!stop){
 			while(!stop_local){
 				float first = getGyroValue();
-				if(!stop)
+				if(!stop){
 					pilot.travel(11,(distanceFront<0.25f && distanceFront !=0) || (distanceSide >=1.5f) );
+					pilot.stop();
+				}
 				float second = getGyroValue();
 				fix_rotation(0, second-first);
 				distanceSide = getUltrasonicSensorValue(sampleProviderSide);
 				distanceFront = getUltrasonicSensorValue(sampleProviderFront);
 				graphicsLCD.clear();
-				graphicsLCD.drawString("front = "+distanceFront, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2-40, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
-				graphicsLCD.drawString("side = "+distanceSide, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2-20, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
+				graphicsLCD.drawString("front = "+distanceFront, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2-40, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
+				graphicsLCD.drawString("side = "+distanceSide, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2-20, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 				Thread.yield();
 				if (distanceFront<0.25f){
 					situation = 1;
 					stop_local = true;
-					graphicsLCD.drawString("condition = "+situation, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
+					graphicsLCD.drawString("condition = "+situation, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 				}else if (distanceSide >=1.5f){
 					situation = 2;
 					stop_local = true;
-					graphicsLCD.drawString("condition = "+situation, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
+					graphicsLCD.drawString("condition = "+situation, graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2+20, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 
 				}
 			}
@@ -211,7 +191,6 @@ public class Finding_Entrance_Emre {
 				rotate_via_gyro(180);
 				Delay.msDelay(100);
 			}else if (situation == 2){
-
 				pilot.travel(20);
 				if (positionWall == -1){
 					//pilot.rotate(90);
@@ -223,7 +202,9 @@ public class Finding_Entrance_Emre {
 					//pilot.rotate(-90);
 					pilot.stop();
 				}
-				pilot.travel(20);
+				pilot.travel(33);
+				inside = isItInside();
+				pilot.stop();
 			}else if (situation == 0){
 
 			}
@@ -269,14 +250,13 @@ public class Finding_Entrance_Emre {
 	public static void rotate_via_gyro(float turn_angle){
 		float first = getGyroValue();
 		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
-		float angle = 0;
-		float angle2;
-		//while (Button.readButtons() != Button.ID_ESCAPE) {
-
-		if(sampleProvider.sampleSize() > 0) {
-			float [] sample2 = new float[sampleProvider.sampleSize()];
-			sampleProvider.fetchSample(sample2, 0);
-			angle2 = sample2[0];
+//		float angle = 0;
+//		float angle2;
+//
+//		if(sampleProvider.sampleSize() > 0) {
+//			float [] sample2 = new float[sampleProvider.sampleSize()];
+//			sampleProvider.fetchSample(sample2, 0);
+//			angle2 = sample2[0];
 
 			if(!stop){
 				pilot.rotate(turn_angle);
@@ -285,7 +265,7 @@ public class Finding_Entrance_Emre {
 				graphicsLCD.drawString("angle: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 				fix_rotation(turn_angle, (second-first));
 			}
-		}
+		//}
 		Thread.yield();
 	}
 	public static void changeConfiguration(){
@@ -424,7 +404,7 @@ public class Finding_Entrance_Emre {
 
 	public void stop(boolean stop) {
 		inside = true;
-		this.stop = stop;
+		Finding_Entrance.stop = stop;
 		if(configurationInitial == -1)
 			changeConfiguration();
 

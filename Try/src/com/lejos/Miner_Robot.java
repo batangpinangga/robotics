@@ -47,21 +47,21 @@ public class Miner_Robot {
 		graphicsLCD.drawString("Miner Robot", graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2-40, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 		int configuration = 1;
 		int[][] map = new int [3][2];
-		
-//		Button.ESCAPE.addKeyListener(new KeyListener() {
-//			@Override
-//			public void keyPressed(Key k) {
-//				entrance.stop();
-//			}
-//
-//			@Override
-//			public void keyReleased(Key k) {
-//				// TODO Auto-generated method stub
-//				minerRobot();
-//				
-//			}
-//			});
 
+		//		Button.ESCAPE.addKeyListener(new KeyListener() {
+		//			@Override
+		//			public void keyPressed(Key k) {
+		//				entrance.stop();
+		//			}
+		//
+		//			@Override
+		//			public void keyReleased(Key k) {
+		//				// TODO Auto-generated method stub
+		//				minerRobot();
+		//				
+		//			}
+		//			});
+		Robot robot = new Robot();
 		while(true)
 		{	
 			graphicsLCD.drawString("UP for Entrance", graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2 , graphicsLCD.VCENTER|graphicsLCD.HCENTER);
@@ -72,8 +72,8 @@ public class Miner_Robot {
 				graphicsLCD.clear();
 				while (Button.readButtons() != Button.ID_ESCAPE){
 					graphicsLCD.drawString("ENTRANCE", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
-					Finding_Entrance entrance = new Finding_Entrance(ultrasonic_up, ultrasonic_down, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot,gyroSensor);
-					entrance.run();
+					Finding_Entrance entrance = new Finding_Entrance(robot);
+					entrance.run(false);
 					configuration = entrance.getConfiguration();
 				}
 				graphicsLCD.clear();
@@ -84,7 +84,7 @@ public class Miner_Robot {
 				//while (Button.readButtons() != Button.ID_ESCAPE){
 				//graphicsLCD.drawString("MAPPING", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 				//graphicsLCD.clear();
-				Mapping_Robot mapping = new Mapping_Robot(ultrasonic_up, ultrasonic_down, colorSensor, motor_ultrasonic, motor_left, motor_right, graphicsLCD, pilot, gyroSensor, configuration);
+				Mapping_Robot mapping = new Mapping_Robot(robot,configuration);
 
 				try {
 					mapping.locate();
@@ -108,8 +108,8 @@ public class Miner_Robot {
 				graphicsLCD.clear();
 				graphicsLCD.drawString("TASK EXECUTION", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 				int [][] map_try = {{33,33,2},{132,33,1},{33,132,4}};
-				Task_Execution task = new Task_Execution(map_try, colorSensor, motor_left, motor_right, graphicsLCD, pilot, gyroSensor, motor_grabber);
-				task.go();
+				Task_Execution task = new Task_Execution(robot,map_try);
+				task.go(false);
 				graphicsLCD.clear();
 			}
 		}

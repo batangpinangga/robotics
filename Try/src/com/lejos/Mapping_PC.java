@@ -41,8 +41,8 @@ public class Mapping_PC extends JFrame{
 
 	private static int stepwidth = 5;
 	private float expected_distance_obstacle = 0.4f;
-	private static Map map;
-	private static MCL localization;
+//	private static Map map;
+//	private static MCL localization;
 
 
 	static InputStream inputStream;
@@ -69,8 +69,8 @@ public class Mapping_PC extends JFrame{
 		orientation = 0;
 		maze_map = maze_length*zoom;
 		tile_map = tile_length*zoom;
-		map = new Map();
-		localization = new MCL(5000,map);
+//		map = new Map();
+//		localization = new MCL(5000,map);
 
 	}
 
@@ -104,10 +104,6 @@ public class Mapping_PC extends JFrame{
 
 				System.out.println("x: " +  position_x);
 				System.out.println("y: " +  position_y);
-
-				//				localization.motionUpdate(travel);
-				//				localization.ultrasonicUpdate(side);
-				//				localization.calculatePose();
 
 			}
 			catch(Exception e){

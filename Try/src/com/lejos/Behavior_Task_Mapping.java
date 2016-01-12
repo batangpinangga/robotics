@@ -9,13 +9,14 @@ import lejos.robotics.subsumption.Behavior;
 public class Behavior_Task_Mapping implements Behavior{
 	GraphicsLCD graphicsLCD;
 	private Mapping_Robot mapping;
+	private Mapping_PC map_pc;
 	
 	private boolean suppressed = false;
 	public static int configuration;
 
 	public Behavior_Task_Mapping(Robot robot) {
 		this.graphicsLCD = robot.getLCD();
-	//	mapping = new Mapping_Robot(robot, configuration);
+		mapping = new Mapping_Robot(robot, configuration);
 	}
 
 	@Override
@@ -35,13 +36,14 @@ public class Behavior_Task_Mapping implements Behavior{
 		while(!suppressed){
 			graphicsLCD.drawString("MAPPING", graphicsLCD.getWidth()/2, 60, graphicsLCD.VCENTER|graphicsLCD.HCENTER);
 
-//			try {
-//				mapping.locate();
-//				mapping.move();
-//			} catch (IOException e1) {
-//				e1.printStackTrace();
-//			}
-//			mapping.getMap();
+			try {
+				mapping.connect(suppressed);
+				mapping.locate();
+				mapping.move();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			mapping.getMap();
 			
 			Thread.yield();
 			try {
@@ -55,7 +57,12 @@ public class Behavior_Task_Mapping implements Behavior{
 	@Override
 	public void suppress() {
 		suppressed = true;
-		mapping.stop(suppressed);
+		try {
+			mapping.stop(suppressed);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		graphicsLCD.clear();
 	}
 
