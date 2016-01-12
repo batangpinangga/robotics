@@ -23,7 +23,7 @@ import lejos.robotics.SampleProvider;
 import lejos.robotics.navigation.DifferentialPilot;
 import lejos.utility.Delay;
 
-public class Mapping_Robot {
+public class Mapping_Robot_2 {
 	static int tile_length = 33;
 
 	static EV3UltrasonicSensor ultrasonic_up;
@@ -80,7 +80,7 @@ public class Mapping_Robot {
 
 	private static int[][] map_to_save;
 
-	public Mapping_Robot(EV3UltrasonicSensor ultrasonic_up,
+	public Mapping_Robot_2(EV3UltrasonicSensor ultrasonic_up,
 			NXTUltrasonicSensor ultrasonic_down,
 			EV3ColorSensor colorSensor,
 			NXTRegulatedMotor motor_ultrasonic,
@@ -176,7 +176,7 @@ public class Mapping_Robot {
 
 		boolean finished = false;
 
-		while (!finished){
+		while (!finished && !Button.ESCAPE.isDown()){
 			motionUpdate();
 			finished = checkfinish();
 		}
@@ -200,68 +200,76 @@ public class Mapping_Robot {
 		int n_turns = 4;
 		int tiles = 0;
 		boolean updateSensors = true;
+		if(!Button.ESCAPE.isDown()){
+			if (orientation==0) { //starting position
+				if (reverse){
+					tiles = 2;
+				}
+				else{
+					tiles = 1;
+				}
+				rotate_via_gyro(-90);	
+				goForward(tile_length*tiles, 1, false);
 
-		if (orientation==0) { //starting position
-			if (reverse){
+				rotate_via_gyro(90);
+				changeConfiguration();
+				goForward(tile_length, 1, updateSensors);
+
+				//locate
+				right_distance = getUltrasonicSensorValue(sampleProviderSide);
+				changeConfiguration();
+				left_distance = getUltrasonicSensorValue(sampleProviderSide);
+				changeConfiguration();
+				motor_ultrasonic.rotate(90);
+				float back_distance = getUltrasonicSensorValue(sampleProviderSide);
+				motor_ultrasonic.rotate(-90);
+
+
+
+				orientation = 1;
+				return;
+			}
+
+			else if (orientation == 1){
+				tiles = 3;
+			}
+			else if (orientation == 2 | orientation == 3){
+				tiles = 3;
+			}
+			else if (orientation == 4 | orientation == 5 ){
 				tiles = 2;
 			}
-			else{
+			else if (orientation == 6 | orientation == 7  ){
 				tiles = 1;
 			}
-			rotate_via_gyro(-90);	
-			goForward(tile_length*tiles, 1, false);
-
-			rotate_via_gyro(90);
-			changeConfiguration();
-			goForward(tile_length, 1, updateSensors);
-
-			//locate
-			right_distance = getUltrasonicSensorValue(sampleProviderSide);
-			changeConfiguration();
-			left_distance = getUltrasonicSensorValue(sampleProviderSide);
-			changeConfiguration();
-			motor_ultrasonic.rotate(90);
-			float back_distance = getUltrasonicSensorValue(sampleProviderSide);
-			motor_ultrasonic.rotate(-90);
-
-
-
-			orientation = 1;
-			return;
+			moveAlongWall(tiles, updateSensors);
 		}
-
-		else if (orientation == 1){
-			tiles = 3;
-		}
-		else if (orientation == 2 | orientation == 3){
-			tiles = 3;
-		}
-		else if (orientation == 4 | orientation == 5 ){
-			tiles = 2;
-		}
-		else if (orientation == 6 | orientation == 7  ){
-			tiles = 1;
-		}
-		moveAlongWall(tiles, updateSensors);
+		
 
 	}
 
 	private void moveAlongWall(int tiles, boolean updateSensors) throws IOException {
+		
 		float distance = tiles*tile_length;
 		if(updateSensors)
+			if(!Button.ESCAPE.isDown())
 			goForward(distance, tiles, true);
 		else
+			if(!Button.ESCAPE.isDown())
 			goForward(distance, tiles, false);
-
-		rotate_via_gyro(90);
-		if(updateSensors)
-			if(sensorUpdate()){
-				obstacle = true;
-				n_obstacles++;
-				Sound.beep();
-			}
-		send_variables_to_PC();
-		obstacle = false;
+		if(!Button.ESCAPE.isDown()){
+			rotate_via_gyro(90);
+			colorUpdate();
+			if(updateSensors)
+				if(sensorUpdate()){
+					obstacle = true;
+					n_obstacles++;
+					Sound.beep();
+				}
+			send_variables_to_PC();
+			obstacle = false;
+		}
+		
 	}
 
 	private static void send_variables_to_PC() throws IOException{
@@ -278,12 +286,14 @@ public class Mapping_Robot {
 	public static void goForward(float distance, int n, boolean updateSensors) throws IOException{
 
 		float substep = distance/n;
-		for (int i=0; i<n; i++){
+		for (int i=0; i<n && !Button.ESCAPE.isDown(); i++){
 			float first = getGyroValue();
-			pilot.travel(substep);
+			if(!Button.ESCAPE.isDown())
+				pilot.travel(substep);
 			pilot.stop();
 			float second = getGyroValue();
-			fix_rotation(0, second-first);
+			if(!Button.ESCAPE.isDown())
+				fix_rotation(0, second-first);
 
 			positionUpdate(substep);
 			if(updateSensors){
@@ -386,15 +396,15 @@ public class Mapping_Robot {
 		if(orientation!=0)
 		orientation++;
 		float first = getGyroValue();
-		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
+		//SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
 		float angle = 0;
 		float angle2;
     	//while (Button.readButtons() != Button.ID_ESCAPE) {
     			
-    		if(sampleProvider.sampleSize() > 0) {
+    		/*if(sampleProvider.sampleSize() > 0) {
 				float [] sample2 = new float[sampleProvider.sampleSize()];
 		    	sampleProvider.fetchSample(sample2, 0);
-				angle2 = sample2[0];
+				angle2 = sample2[0];*/
     		
     		
     	  pilot.rotate(turn_angle);
@@ -402,7 +412,7 @@ public class Mapping_Robot {
     	  graphicsLCD.clear();
 			graphicsLCD.drawString("angle: "+ (second-first), graphicsLCD.getWidth()/2, graphicsLCD.getHeight()/2, GraphicsLCD.VCENTER|GraphicsLCD.HCENTER);
 			fix_rotation(turn_angle, (second-first));
-    		}
+    		//}
     		//Thread.yield();
     }
 	
@@ -428,7 +438,7 @@ public class Mapping_Robot {
 	    
 	    motor_left.setSpeed(20);
 	    motor_right.setSpeed(20);
-		SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
+		//SampleProvider sampleProvider = gyroSensor.getAngleAndRateMode();
 		float first = getGyroValue();
 		float second = 0;
 		
@@ -464,6 +474,7 @@ public class Mapping_Robot {
 	    	sampleProvider.fetchSample(sample, 0);
 			 angle = sample[0];
 		}
+		Thread.yield();
 		return angle;
 	}
 //	public static void rotate_via_gyro(float turn_angle){
